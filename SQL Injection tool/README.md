@@ -1,9 +1,9 @@
 # SQLi Scout 🔍
 
-Advanced SQL Injection Scanner — built for authorized security testing.
+Advanced SQL Injection Scanner - built for authorized security testing.
 Pre-configured for **OWASP Juice Shop**.
 
-> ⚠️ **Legal notice:** Only use against systems you have explicit permission to test.
+> **Legal notice:** Only use against systems you have explicit permission to test.
 > OWASP Juice Shop is an intentionally vulnerable app designed for this purpose.
 
 ---
@@ -18,12 +18,12 @@ Pre-configured for **OWASP Juice Shop**.
 | **Union-Based** | Extracts real data (tables, credentials, schema) once injection confirmed |
 
 Additional capabilities:
-- **Auto-crawler** — discovers forms, URL params, and API endpoints automatically
-- **Juice Shop pre-seeding** — 10+ known injectable endpoints tested automatically
-- **WAF evasion** — comment injection, case variation, URL/double encoding, null bytes
-- **Multi-threaded** — configurable thread count for fast parallel scanning
-- **JSON output** — full structured results saved to file
-- **Colorized CLI** — severity-coded terminal output
+- **Auto-crawler** - discovers forms, URL params, and API endpoints automatically
+- **Juice Shop pre-seeding** - 10+ known injectable endpoints tested automatically
+- **WAF evasion** - comment injection, case variation, URL/double encoding, null bytes
+- **Multi-threaded** - configurable thread count for fast parallel scanning
+- **JSON output** - full structured results saved to file
+- **Colorized CLI** - severity-coded terminal output
 
 ---
 
@@ -111,13 +111,13 @@ Crawl site
     ▼
 For each endpoint × parameter:
     │
-    ├─► Error-Based   ──── inject ' and variants → check response for SQL errors
+    ├─► Error-Based   ─ inject ' and variants → check response for SQL errors
     │
-    ├─► Boolean-Based ──── inject AND 1=1 / AND 1=2 → compare response similarity
+    ├─► Boolean-Based ─ inject AND 1=1 / AND 1=2 → compare response similarity
     │
-    ├─► Time-Based    ──── inject SLEEP(5) variants → measure wall-clock delay
+    ├─► Time-Based    ─ inject SLEEP(5) variants → measure wall-clock delay
     │
-    └─► Union-Based   ──── find column count → find visible column → extract data
+    └─► Union-Based   ─ find column count → find visible column → extract data
 ```
 
 ### Juice Shop Known Attack Surfaces

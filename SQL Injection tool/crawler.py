@@ -21,7 +21,7 @@ from utils import (
 # Universal common paths probed on every target.
 
 COMMON_GET_PATHS = [
-    # Search / query params — most common injection surface
+    # Search / query params - most common injection surface
     ("/search",          {"q": "test"}),
     ("/search.php",      {"q": "test"}),
     ("/search.asp",      {"q": "test"}),
@@ -58,7 +58,7 @@ COMMON_GET_PATHS = [
     ("/user.php",        {"id": "1"}),
     ("/view.php",        {"id": "1"}),
     ("/download.php",    {"file": "test"}),
-    # REST-style APIs — common on modern apps
+    # REST-style APIs - common on modern apps
     ("/api/search",      {"q": "test"}),
     ("/api/products",    {"id": "1"}),
     ("/api/users",       {"id": "1"}),
@@ -76,7 +76,7 @@ COMMON_GET_PATHS = [
 ]
 
 COMMON_POST_PATHS = [
-    # Login forms — highest value target
+    # Login forms - highest value target
     ("/login",           {"username": "test", "password": "test"},   "form"),
     ("/login.php",       {"username": "test", "password": "test"},   "form"),
     ("/login.asp",       {"username": "test", "password": "test"},   "form"),
@@ -137,7 +137,7 @@ class Crawler:
         # 3. De-duplicate
         self.endpoints = self._deduplicate(self.endpoints)
 
-        self._log(f"Discovery complete — {len(self.endpoints)} injection point(s) found")
+        self._log(f"Discovery complete - {len(self.endpoints)} injection point(s) found")
         return self.endpoints
 
     # Known-API seeding
@@ -168,7 +168,7 @@ class Crawler:
                     if self.verbose:
                         self._log(f"  [probe OK] GET {path} ({resp.status_code})")
             except Exception:
-                pass  # Path doesn't exist on this server — skip silently
+                pass  # Path doesn't exist on this server - skip silently
 
         for path, data, req_type in COMMON_POST_PATHS:
             url = self.base_url + path

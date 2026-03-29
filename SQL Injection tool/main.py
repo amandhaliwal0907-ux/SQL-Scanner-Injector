@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-main.py — SQLi Scout Entry Point
+main.py - SQLi Scout Entry Point
 
 Usage examples:
   python main.py -u http://localhost:3000
@@ -21,17 +21,17 @@ def parse_args():
     parser = argparse.ArgumentParser(
         prog="sqli-scout",
         description=(
-            "SQLi Scout — Advanced SQL Injection Scanner\n"
+            "SQLi Scout - Advanced SQL Injection Scanner\n"
             "For authorized security testing only.\n"
             "Optimised for OWASP Juice Shop."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Detection methods:
-  error    — Trigger visible DB error messages
-  boolean  — Infer injection via true/false response divergence
-  time     — Detect blind injection via artificial DB delays
-  union    — Extract real data once injection is confirmed
+  error    - Trigger visible DB error messages
+  boolean  - Infer injection via true/false response divergence
+  time     - Detect blind injection via artificial DB delays
+  union    - Extract real data once injection is confirmed
 
 Examples:
   Full auto-scan (all methods, auto-crawl):
@@ -195,7 +195,7 @@ def main():
     try:
         scanner.run()
     except KeyboardInterrupt:
-        reporter.warning("\nScan interrupted — saving partial results…")
+        reporter.warning("\nScan interrupted - saving partial results…")
         # Ensure scan_end is set
         import time
         scanner.results["scan_end"] = time.strftime("%Y-%m-%d %H:%M:%S")

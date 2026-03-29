@@ -44,7 +44,7 @@ class SQLiScanner:
             "vulnerabilities":  [],
         }
 
-        # Set of (url, param, method_name) already recorded — avoids duplicate rows
+        # Set of (url, param, method_name) already recorded - avoids duplicate rows
         self._recorded = set()
 
         # Build a shared requests.Session
@@ -84,7 +84,7 @@ class SQLiScanner:
             endpoints = crawler.crawl()
 
         if not endpoints:
-            self.reporter.warning("No endpoints discovered — aborting.")
+            self.reporter.warning("No endpoints discovered - aborting.")
             return
 
         # ── Scanning ─────────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ class SQLiScanner:
     # 2. Boolean-Based Blind Detection
 
     def _detect_boolean_based(self, endpoint: dict, param: str):
-        # Baseline — a value that should return a neutral (non-error) response
+        # Baseline - a value that should return a neutral (non-error) response
         try:
             baseline_resp = self._make_request(endpoint, param, "neutralBaselineValue99")
             if baseline_resp is None:
@@ -271,7 +271,7 @@ class SQLiScanner:
                 # A timeout itself can confirm time-based injection
                 detail = (
                     f"Request timed out after {self.config.get('timeout',10)}s "
-                    f"— possible time-based injection [DB hint: {db_hint}]"
+                    f"- possible time-based injection [DB hint: {db_hint}]"
                 )
                 self._record(
                     endpoint, param, payload,
@@ -287,18 +287,18 @@ class SQLiScanner:
     # 4. Union-Based Detection and Data Extraction
 
     def _detect_union_based(self, endpoint: dict, param: str):
-        # Step 1 — Determine column count
+        # Step 1 - Determine column count
         num_cols = self._find_column_count(endpoint, param)
         if num_cols is None or num_cols < 1:
             return
 
         self.reporter.verbose(f"  [UNION] {param} → {num_cols} column(s) detected")
 
-        # Step 2 — Find a column whose content is reflected
+        # Step 2 - Find a column whose content is reflected
         visible_col = self._find_visible_column(endpoint, param, num_cols)
         self.reporter.verbose(f"  [UNION] visible column index: {visible_col}")
 
-        # Step 3 — Extract data
+        # Step 3 - Extract data
         extracted = self._extract_union_data(endpoint, param, num_cols, visible_col)
 
         detail = (
@@ -316,7 +316,7 @@ class SQLiScanner:
 
     def _find_column_count(self, endpoint: dict, param: str) -> int:
         """ORDER BY binary approach, then NULL probing fallback."""
-        # Phase A: ORDER BY escalation — error when n > col count
+        # Phase A: ORDER BY escalation - error when n > col count
         prev_ok = False
         for n in range(1, 25):
             payload = union_order_by(n)
@@ -337,7 +337,7 @@ class SQLiScanner:
             except Exception:
                 return n - 1 if prev_ok else None
 
-        # Phase B: NULL probing — success when count matches exactly
+        # Phase B: NULL probing - success when count matches exactly
         for n in range(1, 25):
             payload = union_null_probe(n)
             try:
@@ -373,7 +373,7 @@ class SQLiScanner:
             except Exception:
                 continue
 
-        return 0  # Default — first column
+        return 0  # Default - first column
 
     def _extract_union_data(self, endpoint: dict, param: str,
                             num_cols: int, visible_col: int) -> dict:
@@ -430,7 +430,7 @@ class SQLiScanner:
         elif param in data:
             data[param] = payload
         else:
-            # Unknown param — inject into query string for GET, body for POST
+            # Unknown param - inject into query string for GET, body for POST
             if method == "GET":
                 params[param] = payload
             else:
@@ -452,7 +452,7 @@ class SQLiScanner:
                 )
 
         except requests.exceptions.Timeout:
-            raise   # Re-raise — time-based detector needs to see this
+            raise   # Re-raise - time-based detector needs to see this
         except Exception:
             return None
 

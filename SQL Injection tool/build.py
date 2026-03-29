@@ -14,7 +14,7 @@ import shutil
 
 APP_NAME    = "SQLiScout"
 ENTRY_POINT = "gui.py"
-ICON_FILE   = "icon.ico"   # optional — place icon.ico in this folder
+ICON_FILE   = "icon.ico"   # optional - place icon.ico in this folder
 
 SOURCE_FILES = [
     "gui.py",
@@ -40,7 +40,7 @@ def check_deps():
         import PyInstaller
         print(f"[+] PyInstaller {PyInstaller.__version__} found")
     except ImportError:
-        print("[!] PyInstaller not found — installing...")
+        print("[!] PyInstaller not found - installing...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
 
     deps = ["PyQt5", "requests", "bs4", "colorama", "lxml"]
@@ -49,7 +49,7 @@ def check_deps():
             __import__(dep)
             print(f"[+] {dep} OK")
         except ImportError:
-            print(f"[!] {dep} not found — installing...")
+            print(f"[!] {dep} not found - installing...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", dep])
 
 
@@ -92,7 +92,7 @@ def build():
         cmd.extend(["--icon", ICON_FILE])
         print(f"[+] Using icon: {ICON_FILE}")
     else:
-        print(f"[~] No icon.ico found — using default (place icon.ico here to customise)")
+        print(f"[~] No icon.ico found - using default (place icon.ico here to customise)")
 
     print("\n[*] Building executable…")
     print(f"    Command: {' '.join(cmd)}\n")
@@ -128,7 +128,7 @@ def cleanup():
 
 if __name__ == "__main__":
     print("="*50)
-    print(f"  SQLi Scout — Build Script")
+    print(f"  SQLi Scout - Build Script")
     print("="*50 + "\n")
 
     check_files()

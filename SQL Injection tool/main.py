@@ -51,7 +51,7 @@ Examples:
         """,
     )
 
-    # ── Required ──────────────────────────────────────────────────────────────
+    # Required arguments
     parser.add_argument(
         "-u", "--url",
         required=True,
@@ -59,7 +59,7 @@ Examples:
         help="Target URL (e.g. http://localhost:3000)",
     )
 
-    # ── Scope ─────────────────────────────────────────────────────────────────
+    # Scope options
     parser.add_argument(
         "--no-crawl",
         action="store_true",
@@ -73,7 +73,7 @@ Examples:
         help="How many link-hops deep to crawl (default: 2)",
     )
 
-    # ── Detection methods ─────────────────────────────────────────────────────
+    # Detection methods
     parser.add_argument(
         "--methods",
         nargs="+",
@@ -83,7 +83,7 @@ Examples:
         help="Detection methods to use (default: all four)",
     )
 
-    # ── Performance ───────────────────────────────────────────────────────────
+    # Performance tuning
     parser.add_argument(
         "--threads",
         type=int,
@@ -113,7 +113,7 @@ Examples:
         help="Minimum delay to flag as time-based injection (default: 4.0)",
     )
 
-    # ── Auth / HTTP ───────────────────────────────────────────────────────────
+    # Authentication and headers
     parser.add_argument(
         "--headers",
         nargs="+",
@@ -126,14 +126,14 @@ Examples:
         help="Cookie string, e.g. 'session=abc; token=xyz'",
     )
 
-    # ── Evasion ───────────────────────────────────────────────────────────────
+    # WAF evasion
     parser.add_argument(
         "--no-waf-evasion",
         action="store_true",
         help="Disable WAF evasion payload variants",
     )
 
-    # ── Output ────────────────────────────────────────────────────────────────
+    # Output options
     parser.add_argument(
         "-o", "--output",
         metavar="FILE",
@@ -143,6 +143,12 @@ Examples:
         "-v", "--verbose",
         action="store_true",
         help="Print every request detail",
+    )
+    parser.add_argument(
+        "--log-file",
+        metavar="FILE",
+        default="scan.log",
+        help="Save detailed scan activity to a text log file (default: scan.log)",
     )
 
     return parser.parse_args()
@@ -176,6 +182,7 @@ def build_config(args) -> dict:
         "delay":          args.delay,
         "time_threshold": args.time_threshold,
         "output":         args.output,
+        "log_file":       args.log_file,
         "headers":        custom_headers,
         "cookies":        cookies,
         "waf_evasion":    not args.no_waf_evasion,

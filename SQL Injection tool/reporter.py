@@ -3,6 +3,7 @@
 
 import sys
 import json
+import time
 
 try:
     from colorama import Fore, Back, Style, init as colorama_init
@@ -34,15 +35,33 @@ class Reporter:
     def __init__(self, config: dict):
         self.config       = config
         self.verbose_mode = config.get("verbose", False)
+        self.log_file     = config.get("log_file")
         self._vuln_count  = 0
 
-    # Section / structural output
+        if self.log_file:
+            self._write_log("INFO", f"Creating scan log: {self.log_file}")
+
+    def _write_log(self, level: str, msg: str):
+        if not self.log_file:
+            return
+        try:
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(f"{timestamp} [{level}] {msg}\n")
+        except Exception:
+            pass
+
+    def log(self, msg: str, level: str = "INFO"):
+        self._write_log(level, msg)
+
+    # Section output
 
     def section(self, title: str):
         bar = "═" * 62
         print(f"\n{Fore.CYAN}{bar}")
         print(f"  {Style.BRIGHT}{Fore.CYAN}{title}")
         print(f"{Fore.CYAN}{bar}{Style.RESET_ALL}")
+        self._write_log("INFO", f"SECTION: {title}")
 
     def banner(self):
         lines = [
@@ -60,22 +79,27 @@ class Reporter:
         ]
         for line in lines:
             print(line)
-
+        self._write_log("INFO", "Starting scan banner")
     # Logging levels
 
     def info(self, msg: str):
         print(f"  {Fore.BLUE}[*]{Style.RESET_ALL} {msg}")
+        self._write_log("INFO", msg)
 
     def success(self, msg: str):
         print(f"  {Fore.GREEN}[+]{Style.RESET_ALL} {msg}")
+        self._write_log("INFO", msg)
 
     def warning(self, msg: str):
         print(f"  {Fore.YELLOW}[!]{Style.RESET_ALL} {msg}")
+        self._write_log("WARNING", msg)
 
     def error(self, msg: str):
         print(f"  {Fore.RED}[FAIL]{Style.RESET_ALL} {msg}", file=sys.stderr)
+        self._write_log("ERROR", msg)
 
     def verbose(self, msg: str):
+        self._write_log("DEBUG", msg)
         if self.verbose_mode:
             print(f"  {Fore.WHITE}[~]{Style.RESET_ALL} {msg}")
 
@@ -86,6 +110,11 @@ class Reporter:
         sev   = vuln.get("severity", "INFO")
         color = SEVERITY_COLOR.get(sev, "")
         bar   = "─" * 60
+
+        self._write_log(
+            "WARNING",
+            f"VULNERABILITY #{self._vuln_count}: {vuln.get('injection_type')} "
+            f"{vuln.get('url')} ?{vuln.get('parameter')} severity={sev} detail={vuln.get('detail')}")
 
         print(f"\n  {Fore.RED}{'━' * 60}{Style.RESET_ALL}")
         print(f"  {Fore.RED + Style.BRIGHT}  [!]  VULNERABILITY #{self._vuln_count}  [!]{Style.RESET_ALL}")
@@ -110,10 +139,11 @@ class Reporter:
             for k, v in extracted.items():
                 val = str(v)
                 print(f"  {Fore.YELLOW}  {k}{Style.RESET_ALL}: {val[:200]}")
+                self._write_log("WARNING", f"Extracted {k}: {val}")
 
         print()
 
-    # Summary table
+    # Summary output
 
     def summary(self, results: dict):
         self.section("SCAN SUMMARY")

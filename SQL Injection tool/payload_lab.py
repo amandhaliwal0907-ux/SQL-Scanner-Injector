@@ -493,9 +493,7 @@ class PayloadLabTab(QWidget):
         self._build_ui()
         self._populate_preset_tree()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # UI
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
         root = QHBoxLayout(self)
@@ -506,13 +504,13 @@ class PayloadLabTab(QWidget):
         splitter.setHandleWidth(1)
         splitter.setStyleSheet("QSplitter::handle { background: #263347; }")
 
-        # ── Left panel: preset library ────────────────────────────────────────
+        # Left panel
         left = self._build_left_panel()
 
-        # ── Center panel: editor + target + results ───────────────────────────
+        # Center panel
         center = self._build_center_panel()
 
-        # ── Right panel: response viewer ──────────────────────────────────────
+        # Right panel
         self.response_viewer = ResponseViewer()
 
         splitter.addWidget(left)
@@ -632,7 +630,7 @@ class PayloadLabTab(QWidget):
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
 
-        # ── Target config row ─────────────────────────────────────────────────
+        # Target config
         target_group = QGroupBox("Target")
         target_group.setStyleSheet("""
             QGroupBox {
@@ -715,7 +713,7 @@ class PayloadLabTab(QWidget):
 
         layout.addWidget(target_group)
 
-        # ── Payload editor ────────────────────────────────────────────────────
+        # Payload editor
         editor_header = QHBoxLayout()
         editor_title = QLabel("Payload Queue")
         editor_title.setStyleSheet("font-size:13px;font-weight:700;color:#E2E8F0;")
@@ -765,7 +763,7 @@ class PayloadLabTab(QWidget):
         self.payload_editor.textChanged.connect(self._update_payload_count)
         layout.addWidget(self.payload_editor)
 
-        # ── Run controls ──────────────────────────────────────────────────────
+        # Run controls
         run_row = QHBoxLayout()
         self.run_btn = QPushButton("Run Payloads")
         self.run_btn.setStyleSheet("""
@@ -825,7 +823,7 @@ class PayloadLabTab(QWidget):
         run_row.addWidget(export_btn)
         layout.addLayout(run_row)
 
-        # ── Results table ─────────────────────────────────────────────────────
+        # Results table
         results_header = QHBoxLayout()
         results_title = QLabel("Results")
         results_title.setStyleSheet("font-size:13px;font-weight:700;color:#E2E8F0;")
@@ -881,9 +879,7 @@ class PayloadLabTab(QWidget):
 
         return w
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Preset tree population
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _populate_preset_tree(self, filter_text: str = ""):
         self.preset_tree.clear()
@@ -937,9 +933,7 @@ class PayloadLabTab(QWidget):
     def _filter_presets(self, text: str):
         self._populate_preset_tree(filter_text=text)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Preset interactions
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _on_preset_double_click(self, item, col):
         data = item.data(0, Qt.UserRole)
@@ -974,9 +968,7 @@ class PayloadLabTab(QWidget):
         else:
             self.payload_editor.setPlainText(payload)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Editor helpers
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _update_payload_count(self):
         lines = [l for l in self.payload_editor.toPlainText().splitlines() if l.strip()]
@@ -988,9 +980,7 @@ class PayloadLabTab(QWidget):
     def _copy_editor(self):
         QApplication.clipboard().setText(self.payload_editor.toPlainText())
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Run payloads
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _build_run_config(self) -> dict:
         method_text = self.method_combo.currentText()
@@ -1080,9 +1070,7 @@ class PayloadLabTab(QWidget):
         self.run_btn.setEnabled(True)
         self.stop_run_btn.hide()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Result handling
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _on_result(self, result: dict):
         # Collect results and update the table immediately for feedback
@@ -1111,9 +1099,7 @@ class PayloadLabTab(QWidget):
         if 0 <= row < len(self._results):
             self.response_viewer.show_result(self._results[row])
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Misc
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _clear_results(self):
         self._results = []
@@ -1151,9 +1137,7 @@ class PayloadLabTab(QWidget):
             except Exception as e:
                 print(f"Export error: {e}")
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Shared style snippets
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _input_style(self):
         return """

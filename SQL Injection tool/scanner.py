@@ -29,10 +29,11 @@ from reporter import Reporter
 
 
 class SQLiScanner:
-    def __init__(self, config: dict, reporter: Reporter):
+    def __init__(self, config: dict, reporter: Reporter, stop_flag=None):
         self.config   = config
         self.reporter = reporter
         self._lock    = threading.Lock()
+        self._stop_flag = stop_flag  # Callable that returns True if scan should stop
 
         self.results = {
             "target":           config["target"],
@@ -41,6 +42,7 @@ class SQLiScanner:
             "methods_used":     config.get("methods", []),
             "endpoints_tested": 0,
             "params_tested":    0,
+            "log_file":         config.get("log_file"),
             "vulnerabilities":  [],
         }
 
@@ -65,6 +67,10 @@ class SQLiScanner:
             s.cookies.update(self.config["cookies"])
         return s
 
+    def _should_stop(self):
+        """Check if scan should be stopped."""
+        return self._stop_flag and self._stop_flag()
+
     # Entry point
 
     def run(self):
@@ -74,32 +80,52 @@ class SQLiScanner:
         self.reporter.info(f"Threads   : {self.config.get('threads', 5)}")
         self.reporter.info(f"WAF Evade : {self.config.get('waf_evasion', True)}")
 
-        # ── Discovery ────────────────────────────────────────────────────────
+        # Test basic connectivity
+        try:
+            self.reporter.info("Testing connectivity to target...")
+            resp = self.session.get(target, timeout=self.config.get("timeout", 10))
+            self.reporter.info(f"Target responds: HTTP {resp.status_code}")
+        except Exception as e:
+            self.reporter.error(f"Cannot connect to target: {e}")
+            return
+
+        # Discovery Phase
         self.reporter.section("DISCOVERY PHASE")
 
         if self.config.get("no_crawl"):
             endpoints = self._endpoints_from_single_url(target)
         else:
-            crawler   = Crawler(self.config, self.session, self.reporter)
+            crawler   = Crawler(self.config, self.session, self.reporter, self._stop_flag)
             endpoints = crawler.crawl()
 
         if not endpoints:
-            self.reporter.warning("No endpoints discovered - aborting.")
+            self.reporter.warning("No endpoints discovered from crawling - falling back to testing the original URL.")
+            endpoints = self._endpoints_from_single_url(target)
+
+        if not endpoints:
+            self.reporter.warning("No endpoints to test - aborting.")
             return
 
-        # ── Scanning ─────────────────────────────────────────────────────────
+        self.reporter.info(f"Found {len(endpoints)} endpoint(s) to test")
+        for ep in endpoints[:5]:  # Show first 5
+            self.reporter.verbose(f"  Endpoint: {ep['method']} {ep['url']} params={list(ep.get('params', {}).keys())}")
+
+        # Scanning Phase
         self.reporter.section("SCANNING PHASE")
         self.reporter.info(f"Testing {len(endpoints)} endpoint(s) with up to {self.config.get('threads',5)} thread(s)")
 
         with ThreadPoolExecutor(max_workers=self.config.get("threads", 5)) as pool:
             futures = {pool.submit(self._scan_endpoint, ep): ep for ep in endpoints}
             for future in as_completed(futures):
+                if self._should_stop():
+                    self.reporter.warning("Scan stopped by user")
+                    break
                 try:
                     future.result()
                 except Exception as exc:
                     self.reporter.verbose(f"Thread error: {exc}")
 
-        # ── Finalise ─────────────────────────────────────────────────────────
+        # Finalise Results
         self.results["scan_end"] = time.strftime("%Y-%m-%d %H:%M:%S")
         self.reporter.summary(self.results)
 
@@ -138,12 +164,21 @@ class SQLiScanner:
                               "username", "query", "keyword", "term"]
 
         self.reporter.verbose(f"[{method}] {url}  params={inject_targets}")
+        self.reporter.info(f"Testing endpoint: {method} {url} with {len(inject_targets)} parameter(s)")
 
         for param in inject_targets:
+            if self._should_stop():
+                self.reporter.warning("Scan stopped by user")
+                return
+            self.reporter.verbose(f"Testing parameter: {param}")
             with self._lock:
                 self.results["params_tested"] += 1
 
             for method_name in self.config.get("methods", []):
+                if self._should_stop():
+                    self.reporter.warning("Scan stopped by user")
+                    return
+                self.reporter.verbose(f"Running {method_name} detection on {param}")
                 if method_name == "error":
                     self._detect_error_based(endpoint, param)
                 elif method_name == "boolean":
@@ -156,9 +191,10 @@ class SQLiScanner:
             if self.config.get("delay"):
                 time.sleep(self.config["delay"])
 
-    # 1. Error-Based Detection
+    # Error-Based Detection
 
     def _detect_error_based(self, endpoint: dict, param: str):
+        self.reporter.verbose(f"Testing error-based injection on param '{param}'")
         payloads = list(ERROR_BASED)
 
         if self.config.get("waf_evasion"):
@@ -168,16 +204,19 @@ class SQLiScanner:
                 evaded.extend(apply_waf_evasion(p))
             payloads = list(dict.fromkeys(payloads + evaded))  # ordered dedup
 
+        self.reporter.verbose(f"Testing {len(payloads)} error-based payloads")
         for payload in payloads:
             try:
                 resp = self._make_request(endpoint, param, payload)
                 if resp is None:
+                    self.reporter.verbose(f"  Request failed for payload: {payload}")
                     continue
 
                 body_low = resp.text.lower()
                 hit = next((sig for sig in ERROR_SIGNATURES if sig in body_low), None)
 
                 if hit:
+                    self.reporter.verbose(f"  Error signature detected: {hit}")
                     self._record(
                         endpoint, param, payload,
                         injection_type="Error-Based",
@@ -189,7 +228,7 @@ class SQLiScanner:
             except Exception as e:
                 self.reporter.verbose(f"  error-based request failed: {e}")
 
-    # 2. Boolean-Based Blind Detection
+    # Boolean-Based Blind Detection
 
     def _detect_boolean_based(self, endpoint: dict, param: str):
         # Baseline - a value that should return a neutral (non-error) response
@@ -230,7 +269,7 @@ class SQLiScanner:
             except Exception as e:
                 self.reporter.verbose(f"  boolean request failed: {e}")
 
-    # 3. Time-Based Blind Detection
+    # Time-Based Blind Detection
 
     def _detect_time_based(self, endpoint: dict, param: str):
         threshold = self.config.get("time_threshold", 4.0)
@@ -284,7 +323,7 @@ class SQLiScanner:
             except Exception as e:
                 self.reporter.verbose(f"  time-based request failed: {e}")
 
-    # 4. Union-Based Detection and Data Extraction
+    # Union-Based Detection and Data Extraction
 
     def _detect_union_based(self, endpoint: dict, param: str):
         # Step 1 - Determine column count
@@ -319,6 +358,8 @@ class SQLiScanner:
         # Phase A: ORDER BY escalation - error when n > col count
         prev_ok = False
         for n in range(1, 25):
+            if self._should_stop():
+                return None
             payload = union_order_by(n)
             try:
                 resp = self._make_request(endpoint, param, payload)
@@ -339,6 +380,8 @@ class SQLiScanner:
 
         # Phase B: NULL probing - success when count matches exactly
         for n in range(1, 25):
+            if self._should_stop():
+                return None
             payload = union_null_probe(n)
             try:
                 resp = self._make_request(endpoint, param, payload)
@@ -363,6 +406,8 @@ class SQLiScanner:
         marker = "SQSCOUTMARKER7K3X"
 
         for idx in range(num_cols):
+            if self._should_stop():
+                return 0
             cols = ["NULL"] * num_cols
             cols[idx] = f"'{marker}'"
             payload = union_extract(cols)
@@ -381,6 +426,8 @@ class SQLiScanner:
         extracted = {}
 
         for label, query in UNION_EXTRACT_QUERIES.items():
+            if self._should_stop():
+                break
             try:
                 resp = self._make_request(endpoint, param, query)
                 if not resp or resp.status_code not in (200, 201):
@@ -435,6 +482,10 @@ class SQLiScanner:
                 params[param] = payload
             else:
                 data[param] = payload
+
+        self.reporter.verbose(
+            f"REQUEST {method} {url} param={param} payload={payload} "
+            f"params={params} data={data} timeout={timeout}")
 
         try:
             if method == "GET":

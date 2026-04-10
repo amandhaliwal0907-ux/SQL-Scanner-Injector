@@ -212,9 +212,7 @@ ERROR_SIGNATURES = [
 ]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Worker thread - crawls then tests automatically
-# ─────────────────────────────────────────────────────────────────────────────
+# Worker thread
 
 class AutoScanWorker(QThread):
     log_signal      = pyqtSignal(str, str)
@@ -430,9 +428,7 @@ class AutoScanWorker(QThread):
         self.done_signal.emit(results)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Quick Launch Tab
-# ─────────────────────────────────────────────────────────────────────────────
 
 class QuickLaunchTab(QWidget):
     def _opt_row(self, layout, label, default, minval, maxval):
@@ -483,7 +479,7 @@ class QuickLaunchTab(QWidget):
         splitter.setSizes([300, 1000])
         root.addWidget(splitter)
 
-    # ── Left panel ────────────────────────────────────────────────────────────
+    # Left panel
 
     def _build_left(self) -> QWidget:
         from PyQt5.QtWidgets import QScrollArea
@@ -518,7 +514,7 @@ class QuickLaunchTab(QWidget):
         lay.setContentsMargins(16, 18, 16, 16)
         lay.setSpacing(14)
 
-        # ── Target URL ────────────────────────────────────────────────────────
+        # Target URL
         url_lbl = QLabel("TARGET URL")
         url_lbl.setStyleSheet(f"font-size: 10px; font-weight: 700; color: {C_DIMMED}; letter-spacing: 1.2px; background: transparent;")
         lay.addWidget(url_lbl)
@@ -540,10 +536,10 @@ class QuickLaunchTab(QWidget):
         hint.setWordWrap(True)
         lay.addWidget(hint)
 
-        # ── Divider ───────────────────────────────────────────────────────────
+        # Divider
         lay.addWidget(self._divider())
 
-        # ── Scan Mode ─────────────────────────────────────────────────────────
+        # Scan Mode
         mode_lbl = QLabel("SCAN MODE")
         mode_lbl.setStyleSheet(f"font-size: 10px; font-weight: 700; color: {C_DIMMED}; letter-spacing: 1.2px; background: transparent;")
         lay.addWidget(mode_lbl)
@@ -576,7 +572,7 @@ class QuickLaunchTab(QWidget):
         mc.addWidget(self.mode_desc)
         lay.addWidget(self.mode_card)
 
-        # ── Advanced groups (shown only in advanced mode) ─────────────────────
+        # Advanced groups
         self.adv_frame = QWidget()
         self.adv_frame.setStyleSheet(f"background: {C_SIDEBAR};")
         af = QVBoxLayout(self.adv_frame)
@@ -633,10 +629,10 @@ class QuickLaunchTab(QWidget):
         lay.addWidget(self.adv_frame)
         self.adv_frame.hide()
 
-        # ── Divider ───────────────────────────────────────────────────────────
+        # Divider
         lay.addWidget(self._divider())
 
-        # ── Options ───────────────────────────────────────────────────────────
+        # Options
         opt_lbl = QLabel("OPTIONS")
         opt_lbl.setStyleSheet(f"font-size: 10px; font-weight: 700; color: {C_DIMMED}; letter-spacing: 1.2px; background: transparent;")
         lay.addWidget(opt_lbl)
@@ -651,7 +647,7 @@ class QuickLaunchTab(QWidget):
         scroll.setWidget(inner)
         outer_lay.addWidget(scroll, 1)
 
-        # ── Launch / Stop (pinned to bottom, outside scroll) ──────────────────
+        # Launch / Stop buttons
         btn_area = QWidget()
         btn_area.setStyleSheet(f"background: {C_SIDEBAR}; border-top: 1px solid {C_BORDER};")
         btn_lay = QVBoxLayout(btn_area)
@@ -822,9 +818,7 @@ class QuickLaunchTab(QWidget):
         lay.addWidget(self.preview)
         return w
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Mode
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _set_mode(self, mode: str):
         self._mode = mode
@@ -854,9 +848,7 @@ class QuickLaunchTab(QWidget):
             )
             self.launch_btn.setText("Launch Scan")
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Launch / Stop
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _get_payloads(self):
         if self._mode == "basic":
@@ -923,9 +915,7 @@ class QuickLaunchTab(QWidget):
         self.stop_btn.hide()
         self.progress.hide()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Signals
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _on_log(self, msg, level):
         cols = {"info": C_MUTED, "success": C_SUCCESS, "warning": C_WARNING, "error": C_DANGER}
@@ -1007,9 +997,7 @@ class QuickLaunchTab(QWidget):
             snippet = self._results[row].get("snippet", "")
             self.preview.setPlainText(snippet or "(no response body)")
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Helpers
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _chip(self, label, value, color) -> QFrame:
         f = QFrame()

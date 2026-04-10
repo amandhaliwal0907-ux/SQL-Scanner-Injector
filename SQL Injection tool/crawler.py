@@ -107,10 +107,11 @@ COMMON_POST_PATHS = [
 
 
 class Crawler:
-    def __init__(self, config: dict, session: requests.Session, reporter=None):
+    def __init__(self, config: dict, session: requests.Session, reporter=None, stop_flag=None):
         self.config   = config
         self.session  = session
         self.reporter = reporter
+        self._stop_flag = stop_flag  # Callable that returns True if crawl should stop
 
         target = normalize_url(config["target"])
         self.base_url  = get_base_url(target)
@@ -119,14 +120,20 @@ class Crawler:
         self.visited   = set()
         self.endpoints = []          # collected injection targets
         self.max_depth = config.get("crawl_depth", 2)
+        self.max_pages = config.get("max_crawl_pages", 100)  # Limit pages to prevent memory issues
+        self.max_endpoints = config.get("max_endpoints", 200)  # Limit endpoints
         self.timeout   = config.get("timeout", 10)
         self.delay     = config.get("delay", 0)
         self.verbose   = config.get("verbose", False)
 
+    def _should_stop(self):
+        """Check if crawl should be stopped."""
+        return self._stop_flag and self._stop_flag()
+
     # Public entry point
 
     def crawl(self) -> list:
-        self._log(f"Starting crawl: {self.start_url}  (depth={self.max_depth})")
+        self._log(f"Starting crawl: {self.start_url}  (depth={self.max_depth}, max_pages={self.max_pages})")
 
         # 1. Probe universal common paths (only adds ones that respond)
         self._probe_common_paths()
@@ -150,6 +157,8 @@ class Crawler:
         """
         added = 0
         for path, params in COMMON_GET_PATHS:
+            if self._should_stop() or len(self.endpoints) >= self.max_endpoints:
+                break
             url = self.base_url + path
             try:
                 resp = self.session.get(url, params=params,
@@ -171,6 +180,8 @@ class Crawler:
                 pass  # Path doesn't exist on this server - skip silently
 
         for path, data, req_type in COMMON_POST_PATHS:
+            if self._should_stop() or len(self.endpoints) >= self.max_endpoints:
+                break
             url = self.base_url + path
             try:
                 if req_type == "json":
@@ -199,6 +210,15 @@ class Crawler:
     # Recursive HTML crawler
 
     def _crawl_page(self, url: str, depth: int):
+        if self._should_stop():
+            return
+        if len(self.visited) >= self.max_pages:
+            self._log(f"Reached maximum page limit ({self.max_pages})")
+            return
+        if len(self.endpoints) >= self.max_endpoints:
+            self._log(f"Reached maximum endpoint limit ({self.max_endpoints})")
+            return
+
         url = clean_url(url)
 
         if url in self.visited or depth > self.max_depth:
@@ -238,25 +258,29 @@ class Crawler:
 
         # Harvest forms
         for form in soup.find_all("form"):
+            if self._should_stop() or len(self.endpoints) >= self.max_endpoints:
+                break
             ep = self._parse_form(url, form)
             if ep:
                 self.endpoints.append(ep)
 
         # Scan inline JS for API paths
         for path in extract_js_api_paths(resp.text):
+            if self._should_stop() or len(self.endpoints) >= self.max_endpoints:
+                break
             self._js_path_to_endpoint(path)
 
         # Follow internal links
         if depth < self.max_depth:
             for tag in soup.find_all("a", href=True):
+                if self._should_stop() or len(self.visited) >= self.max_pages:
+                    break
                 href   = tag["href"]
                 target = clean_url(urljoin(url, href))
                 if is_same_domain(target, self.base_url) and target not in self.visited:
                     self._crawl_page(target, depth + 1)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Form parser
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _parse_form(self, page_url: str, form) -> dict:
         action = form.get("action") or page_url
@@ -282,9 +306,7 @@ class Crawler:
             "type":   "form",
         }
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # JS-discovered paths
-    # ─────────────────────────────────────────────────────────────────────────
+    # JS path handling
 
     def _js_path_to_endpoint(self, path: str):
         if path.startswith("http"):
@@ -315,9 +337,7 @@ class Crawler:
                 "type":   "api",
             })
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Deduplication
-    # ─────────────────────────────────────────────────────────────────────────
 
     @staticmethod
     def _deduplicate(endpoints: list) -> list:
@@ -335,9 +355,7 @@ class Crawler:
                 unique.append(ep)
         return unique
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Logging shim
-    # ─────────────────────────────────────────────────────────────────────────
+    # Logging
 
     def _log(self, msg: str):
         if self.reporter:

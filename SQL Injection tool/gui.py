@@ -3,6 +3,7 @@
 # Clean, modern PyQt5 interface
 
 import sys
+import os
 import json
 import time
 import threading
@@ -438,9 +439,7 @@ QToolTip {{
 """
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Scan Worker Thread
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ScanWorker(QThread):
     log_signal   = pyqtSignal(str, str)   # (message, level)
@@ -466,30 +465,43 @@ class ScanWorker(QThread):
 
     def run(self):
         try:
+            self.log("ScanWorker.run() started", "info")
+
             # Import here so GUI loads fast even if backend modules have errors
             import requests
             from crawler import Crawler
             from scanner import SQLiScanner
             from reporter import Reporter
 
+            self.log("Imports successful", "info")
+
             # Build a GUI-aware reporter
-            reporter = GUIReporter(self.log_signal, self.vuln_signal)
+            reporter = GUIReporter(
+                self.log_signal,
+                self.vuln_signal,
+                log_file=self.config.get("log_file")
+            )
             reporter.verbose_mode = self.config.get("verbose", False)
 
+            self.log("Reporter created", "info")
             self.log("Starting scan…", "info")
             self.log(f"Target: {self.config['target']}", "info")
             self.log(f"Methods: {', '.join(self.config.get('methods', []))}", "info")
 
-            scanner = SQLiScanner(self.config, reporter)
+            scanner = SQLiScanner(self.config, reporter, lambda: self._stop)
+            self.log("Scanner created", "info")
 
             # Run the scan (blocking)
+            self.log("Calling scanner.run()", "info")
             scanner.run()
+            self.log("scanner.run() completed", "info")
 
             self.results = scanner.results
             self.results["scan_end"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             self.log("", "spacer")
             count = len(self.results["vulnerabilities"])
+            self.log(f"Final results: {count} vulnerabilities found", "info")
             if count:
                 self.log(f"Scan complete - {count} vulnerabilit{'y' if count==1 else 'ies'} found.", "success")
             else:
@@ -503,6 +515,7 @@ class ScanWorker(QThread):
             import traceback
             self.log(traceback.format_exc(), "error")
         finally:
+            self.log("ScanWorker.run() finished, emitting done_signal", "info")
             self.done_signal.emit(self.results)
 
     def log(self, msg, level="info"):
@@ -511,41 +524,77 @@ class ScanWorker(QThread):
 
 class GUIReporter:
     """Bridges scanner.py's Reporter interface to Qt signals."""
-    def __init__(self, log_signal, vuln_signal):
+    def __init__(self, log_signal, vuln_signal, log_file: str = None):
         self.log_signal  = log_signal
         self.vuln_signal = vuln_signal
         self.verbose_mode = False
+        self.log_file = log_file
         self._vuln_count = 0
 
-    def info(self, msg):    self.log_signal.emit(str(msg), "info")
-    def success(self, msg): self.log_signal.emit(str(msg), "success")
-    def warning(self, msg): self.log_signal.emit(str(msg), "warning")
-    def error(self, msg):   self.log_signal.emit(str(msg), "error")
+        if self.log_file:
+            self._write_log("INFO", f"Creating GUI scan log: {self.log_file}")
+
+    def _write_log(self, level: str, msg: str):
+        if not self.log_file:
+            return
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(f"{timestamp} [{level}] {msg}\n")
+        except Exception:
+            pass
+
+    def info(self, msg):
+        self.log_signal.emit(str(msg), "info")
+        self._write_log("INFO", str(msg))
+
+    def success(self, msg):
+        self.log_signal.emit(str(msg), "success")
+        self._write_log("INFO", str(msg))
+
+    def warning(self, msg):
+        self.log_signal.emit(str(msg), "warning")
+        self._write_log("WARNING", str(msg))
+
+    def error(self, msg):
+        self.log_signal.emit(str(msg), "error")
+        self._write_log("ERROR", str(msg))
+
     def verbose(self, msg):
+        self._write_log("DEBUG", str(msg))
         if self.verbose_mode:
             self.log_signal.emit(str(msg), "verbose")
+
     def section(self, title):
         self.log_signal.emit(f"── {title} ──", "section")
+        self._write_log("INFO", f"SECTION: {title}")
+
     def vulnerability(self, vuln: dict):
         self._vuln_count += 1
         self.vuln_signal.emit(vuln)
-        self.log_signal.emit(
+        detail = (
             f"[{vuln.get('severity','?')}] {vuln.get('injection_type')} on "
-            f"{vuln.get('parameter')} @ {vuln.get('url')}",
-            "vuln"
+            f"{vuln.get('parameter')} @ {vuln.get('url')}"
         )
+        self.log_signal.emit(detail, "vuln")
+        self._write_log("WARNING", detail)
+        if vuln.get("extracted_data"):
+            for k, v in vuln["extracted_data"].items():
+                self._write_log("WARNING", f"Extracted {k}: {v}")
+
     def summary(self, results): pass   # GUI handles this
+
     def save_to_file(self, results, path):
         try:
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(results, f, indent=2, default=str)
+            self._write_log("INFO", f"Results exported → {path}")
         except Exception as e:
             self.log_signal.emit(f"Could not save: {e}", "error")
+            self._write_log("ERROR", f"Could not save results: {e}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stat Card Widget
-# ─────────────────────────────────────────────────────────────────────────────
 
 class StatCard(QFrame):
     def __init__(self, label: str, value: str = "-", color: str = Colors.ACCENT):
@@ -580,9 +629,7 @@ class StatCard(QFrame):
         self.value_label.setText(str(v))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Severity Badge Widget
-# ─────────────────────────────────────────────────────────────────────────────
 
 class SeverityBadge(QLabel):
     def __init__(self, severity: str):
@@ -601,9 +648,7 @@ class SeverityBadge(QLabel):
         self.setFixedHeight(24)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Log Output with colored lines
-# ─────────────────────────────────────────────────────────────────────────────
 
 class LogWidget(QTextEdit):
     LOG_COLORS = {
@@ -664,9 +709,7 @@ class LogWidget(QTextEdit):
         self.clear()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Vulnerability Detail Panel
-# ─────────────────────────────────────────────────────────────────────────────
 
 class VulnDetailPanel(QFrame):
     def __init__(self):
@@ -777,9 +820,7 @@ class VulnDetailPanel(QFrame):
         self.detail_layout.addWidget(val)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Main Window
-# ─────────────────────────────────────────────────────────────────────────────
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -793,16 +834,14 @@ class MainWindow(QMainWindow):
         self._vulns  = []
         self._scan_start = None
 
-        # ── Timer for elapsed display ────────────────────────────────────────
+        # Timer for elapsed display
         self._elapsed_timer = QTimer()
         self._elapsed_timer.timeout.connect(self._update_elapsed)
 
         self._build_ui()
         self._update_stats(0, 0, 0, 0)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # UI Construction
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
         root = QWidget()
@@ -830,7 +869,7 @@ class MainWindow(QMainWindow):
         self.statusBar.addWidget(self._status_label)
         self.statusBar.addPermanentWidget(self._elapsed_label)
 
-    # ── Sidebar ──────────────────────────────────────────────────────────────
+    # Sidebar
 
     def _build_sidebar(self) -> QWidget:
         sidebar = QWidget()
@@ -856,7 +895,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(sub)
         layout.addSpacing(28)
 
-        # ── Target ───────────────────────────────────────────────────────────
+        # Target
         self._add_sidebar_section(layout, "TARGET")
 
         url_label = QLabel("URL")
@@ -882,7 +921,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.url_input)
         layout.addSpacing(16)
 
-        # ── Detection Methods ─────────────────────────────────────────────────
+        # Detection Methods
         self._add_sidebar_section(layout, "DETECTION METHODS")
 
         self.method_checks = {}
@@ -900,7 +939,7 @@ class MainWindow(QMainWindow):
             self.method_checks[key] = cb
         layout.addSpacing(16)
 
-        # ── Options ───────────────────────────────────────────────────────────
+        # Options
         self._add_sidebar_section(layout, "OPTIONS")
 
         options_grid = QWidget()
@@ -926,11 +965,12 @@ class MainWindow(QMainWindow):
         self.waf_check = QCheckBox("WAF Evasion")
         self.waf_check.setChecked(True)
         self.verbose_check = QCheckBox("Verbose Logging")
+        self.verbose_check.setChecked(True)  # Enable verbose by default for debugging
         layout.addWidget(self.waf_check)
         layout.addWidget(self.verbose_check)
         layout.addSpacing(16)
 
-        # ── Auth ──────────────────────────────────────────────────────────────
+        # Auth / Headers
         self._add_sidebar_section(layout, "AUTH / HEADERS")
 
         cookie_label = QLabel("Cookies")
@@ -971,7 +1011,7 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        # ── Action buttons ────────────────────────────────────────────────────
+        # Action buttons
         # Separator label above deep scan
         sep_line = QFrame()
         sep_line.setFixedHeight(1)
@@ -1071,7 +1111,7 @@ class MainWindow(QMainWindow):
         w._spin = spin
         return w
 
-    # ── Content area ──────────────────────────────────────────────────────────
+    # Content area
 
     def _build_content(self) -> QWidget:
         content = QWidget()
@@ -1080,7 +1120,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(24, 24, 24, 16)
         layout.setSpacing(16)
 
-        # ── Stats row ─────────────────────────────────────────────────────────
+        # Stats row
         stats_row = QHBoxLayout()
         stats_row.setSpacing(12)
         self.card_vulns     = StatCard("Vulnerabilities",    "-", Colors.DANGER)
@@ -1092,7 +1132,7 @@ class MainWindow(QMainWindow):
             stats_row.addWidget(card)
         layout.addLayout(stats_row)
 
-        # ── Tabs ──────────────────────────────────────────────────────────────
+        # Tabs
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
 
@@ -1208,6 +1248,13 @@ class MainWindow(QMainWindow):
         log_toolbar.addWidget(log_title)
         log_toolbar.addStretch()
         log_toolbar.addWidget(clear_log_btn)
+
+        export_log_btn = QPushButton("Export Log")
+        export_log_btn.setObjectName("iconBtn")
+        export_log_btn.setCursor(Qt.PointingHandCursor)
+        export_log_btn.clicked.connect(self._export_log)
+        log_toolbar.addWidget(export_log_btn)
+
         layout.addLayout(log_toolbar)
 
         self.log_widget = LogWidget()
@@ -1247,14 +1294,17 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.data_table)
         return w
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Scan control
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _build_config(self) -> dict:
         url = self.url_input.text().strip()
         if not url:
             return None
+
+        # Check if URL has query parameters
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        has_params = bool(parsed.query)
 
         methods = [k for k, cb in self.method_checks.items() if cb.isChecked()]
         if not methods:
@@ -1275,12 +1325,14 @@ class MainWindow(QMainWindow):
                     k, v = pair.split("=", 1)
                     cookies[k.strip()] = v.strip()
 
-        return {
+        config = {
             "target":         url,
             "methods":        methods,
             "threads":        self.threads_spin._spin.value(),
             "timeout":        self.timeout_spin._spin.value(),
             "crawl_depth":    self.depth_spin._spin.value(),
+            "max_crawl_pages": 200,
+            "max_endpoints":   300,
             "delay":          self.delay_dspin._spin.value(),
             "time_threshold": self.time_thresh._spin.value(),
             "waf_evasion":    self.waf_check.isChecked(),
@@ -1291,12 +1343,21 @@ class MainWindow(QMainWindow):
             "output":         None,
         }
 
+        # Warn if no query parameters
+        if not has_params:
+            self.log_widget.append_log(f"Warning: URL '{url}' has no query parameters. The scanner will try common parameter names.", "warning")
+
+        return config
+
     def _start_scan(self):
         config = self._build_config()
         if not config:
             QMessageBox.warning(self, "Missing Input",
                                 "Please enter a target URL and select at least one detection method.")
             return
+
+        # Debug: Log the configuration
+        self.log_widget.append_log(f"Config: {json.dumps(config, indent=2)}", "info")
 
         # Reset state
         self._vulns = []
@@ -1317,11 +1378,18 @@ class MainWindow(QMainWindow):
         self._set_status("Scanning…", Colors.ACCENT)
 
         # Worker
-        self._worker = ScanWorker(config)
-        self._worker.log_signal.connect(self._on_log)
-        self._worker.vuln_signal.connect(self._on_vuln)
-        self._worker.done_signal.connect(self._on_done)
-        self._worker.start()
+        try:
+            self._worker = ScanWorker(config)
+            self._worker.log_signal.connect(self._on_log)
+            self._worker.vuln_signal.connect(self._on_vuln)
+            self._worker.done_signal.connect(self._on_done)
+            self._worker.start()
+            self.log_widget.append_log("Scan worker started successfully", "info")
+        except Exception as e:
+            self.log_widget.append_log(f"Failed to start scan worker: {e}", "error")
+            import traceback
+            self.log_widget.append_log(traceback.format_exc(), "error")
+            self._scan_finished()
 
     def _stop_scan(self):
         if self._worker:
@@ -1337,9 +1405,7 @@ class MainWindow(QMainWindow):
         self._set_inputs_enabled(True)
         self._elapsed_timer.stop()
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Signals
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _on_log(self, message: str, level: str):
         self.log_widget.append_log(message, level)
@@ -1367,6 +1433,7 @@ class MainWindow(QMainWindow):
         self.tabs.setTabText(0, f"  Vulnerabilities ({total})  ")
 
     def _on_done(self, results: dict):
+        self.log_widget.append_log(f"_on_done called with results: {len(results.get('vulnerabilities', []))} vulns", "info")
         self._scan_finished()
         ep  = results.get("endpoints_tested", 0)
         prm = results.get("params_tested",    0)
@@ -1383,9 +1450,7 @@ class MainWindow(QMainWindow):
 
         self._last_results = results
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Table helpers
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _add_vuln_row(self, vuln: dict, apply_filter: bool = True):
         sev = vuln.get("severity", "INFO")
@@ -1448,9 +1513,7 @@ class MainWindow(QMainWindow):
         self.tabs.setTabText(0, "  Vulnerabilities  ")
         self._update_stats(0, 0, None, None)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Export
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _export_results(self):
         if not hasattr(self, "_last_results") or not self._last_results:
@@ -1475,6 +1538,24 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Export Error", str(e))
 
+    def _export_log(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save scan log",
+            "scan.log",
+            "Log Files (*.log);;Text Files (*.txt);;All Files (*)"
+        )
+        if not path:
+            return
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self.log_widget.toPlainText())
+            self.log_widget.append_log(f"Log exported → {path}", "success")
+            self._set_status(f"Log exported to {path}", Colors.SUCCESS)
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", str(e))
+
     def _copy_extracted(self):
         rows = []
         for r in range(self.data_table.rowCount()):
@@ -1486,9 +1567,7 @@ class MainWindow(QMainWindow):
         QApplication.clipboard().setText("\n".join(rows))
         self._set_status("Copied to clipboard", Colors.SUCCESS)
 
-    # ─────────────────────────────────────────────────────────────────────────
     # Misc UI helpers
-    # ─────────────────────────────────────────────────────────────────────────
 
     def _update_stats(self, vulns, hi_crit, endpoints, params):
         if vulns is not None:    self.card_vulns.set_value(str(vulns))
@@ -1524,18 +1603,16 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Entry point
-# ─────────────────────────────────────────────────────────────────────────────
 
 def main():
+    # High-DPI support (must be set before QApplication creation)
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     app = QApplication(sys.argv)
     app.setApplicationName("SQLi Scout")
     app.setOrganizationName("SQLiScout")
-
-    # High-DPI support
-    app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     # Font
     app.setFont(QFont("Segoe UI", 10))
